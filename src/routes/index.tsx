@@ -38,7 +38,7 @@ function Index() {
     setClaiming(os);
     const { error } = await supabase.rpc("claim_desktop", { _os: os });
     setClaiming(null);
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     navigate({ to: "/desktop" });
   };
 

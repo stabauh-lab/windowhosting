@@ -53,11 +53,11 @@ function AdminPage() {
   const add = async (e: React.FormEvent) => {
     e.preventDefault();
     const finalOs = os === "__custom" ? custom.trim() : os;
-    if (!finalOs) return toast.error("Enter an OS name");
+    if (!finalOs) { toast.error("Enter an OS name"); return; }
     const { error } = await supabase.from("desktops").insert({
       os: finalOs, name: name || `${finalOs} #${rows.length + 1}`, vnc_url: url,
     });
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     setName(""); setUrl(""); toast.success("Desktop added"); load();
   };
 
