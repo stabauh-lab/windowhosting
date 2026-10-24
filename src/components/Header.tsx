@@ -1,11 +1,11 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Monitor, LogOut, Shield } from "lucide-react";
+import { Monitor, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 
 export function Header() {
-  const { user, isAdmin } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
   return (
     <header className="sticky top-0 z-30 border-b bg-background/80 backdrop-blur">
@@ -17,11 +17,6 @@ export function Header() {
           <span>TempDesk</span>
         </Link>
         <nav className="flex items-center gap-2">
-          {isAdmin && (
-            <Button asChild variant="ghost" size="sm">
-              <Link to="/admin"><Shield className="h-4 w-4" />Admin</Link>
-            </Button>
-          )}
           {user ? (
             <Button
               variant="outline"
