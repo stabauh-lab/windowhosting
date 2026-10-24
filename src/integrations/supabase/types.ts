@@ -23,6 +23,10 @@ export type Database = {
           id: string
           name: string
           os: string
+          rdp_ip: string | null
+          rdp_password: string | null
+          rdp_port: number
+          rdp_username: string | null
           vnc_url: string
         }
         Insert: {
@@ -33,6 +37,10 @@ export type Database = {
           id?: string
           name: string
           os: string
+          rdp_ip?: string | null
+          rdp_password?: string | null
+          rdp_port?: number
+          rdp_username?: string | null
           vnc_url: string
         }
         Update: {
@@ -43,6 +51,10 @@ export type Database = {
           id?: string
           name?: string
           os?: string
+          rdp_ip?: string | null
+          rdp_password?: string | null
+          rdp_port?: number
+          rdp_username?: string | null
           vnc_url?: string
         }
         Relationships: []
@@ -71,6 +83,14 @@ export type Database = {
     }
     Functions: {
       claim_desktop: { Args: { _os: string }; Returns: string }
+      claim_rdp_desktop: { Args: never; Returns: string }
+      count_available_desktops: {
+        Args: never
+        Returns: {
+          available: number
+          total: number
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
