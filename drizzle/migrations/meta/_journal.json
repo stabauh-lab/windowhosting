@@ -8,6 +8,13 @@
       "when": 1792385992024,
       "tag": "0000_vnc_desktops",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792842453934,
+      "tag": "0001_windows_rdp_desktops",
+      "breakpoints": true
     }
   ]
 }
