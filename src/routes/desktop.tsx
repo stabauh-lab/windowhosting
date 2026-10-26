@@ -14,6 +14,8 @@ export const Route = createFileRoute("/desktop")({
       { name: "description", content: "Your Windows RDP machine details." },
       { property: "og:title", content: "My machine — TempDesk" },
       { property: "og:description", content: "Your Windows RDP machine details." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: DesktopPage,

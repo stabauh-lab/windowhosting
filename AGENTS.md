@@ -8,3 +8,6 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+- Keep the homepage as a presentation of the existing Windows RDP offering; design changes must not alter machine allocation, authentication or admin permissions.
+- Define the shared visual theme in src/styles.css and load its fonts in the root head so public, account and admin pages stay consistent.
