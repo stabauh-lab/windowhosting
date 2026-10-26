@@ -1,5 +1,10 @@
 # Roadmap
 
+- [ ] Store pending RDP requests and require admin approval for allocation
+- [ ] Show awaiting-approval status and reveal credentials after approval
+- [ ] Add admin request queue with machine assignment
+- [ ] Test security rules and verify request-to-approval flow
+
 - [x] Refresh the homepage with purple-and-white styling, DM fonts, free plan, features and FAQ
 - [x] Verify the refreshed homepage and navigation on desktop and mobile
 
