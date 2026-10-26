@@ -64,7 +64,7 @@ function Index() {
       <main>
         <section className="relative isolate overflow-hidden bg-hero">
           <img src={heroImage} alt="Windows desktop on a silver laptop beside a purple cloud" width={1536} height={1024} fetchPriority="high" className="hero-image absolute inset-0 -z-10 h-full w-full object-cover max-md:opacity-20" />
-          <div className="mx-auto max-w-6xl px-5 py-12 md:py-20 lg:px-8 lg:py-24">
+          <div className="mx-auto max-w-6xl px-5 py-7 md:py-20 lg:px-8 lg:py-24">
             <div className="max-w-xl md:max-w-[48%]">
               <p className="mb-5 flex items-center gap-2 font-mono text-xs font-medium uppercase tracking-normal text-primary"><span className="h-2 w-2 rounded-full bg-success" />YOUR WORKSPACE. ZERO COST.</p>
               <h1 className="text-4xl font-extrabold leading-[1.12] md:text-5xl lg:text-6xl">Your Windows<br />cloud desktop.<br /><span className="text-primary">Free for 30 days.</span></h1>

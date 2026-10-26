@@ -1,7 +1,7 @@
 # Roadmap
 
-- [ ] Refresh the homepage with purple-and-white styling, DM fonts, free plan, features and FAQ
-- [ ] Verify the refreshed homepage and navigation on desktop and mobile
+- [x] Refresh the homepage with purple-and-white styling, DM fonts, free plan, features and FAQ
+- [x] Verify the refreshed homepage and navigation on desktop and mobile
 
 - [x] Store admin password (1122) as ADMIN_PASSWORD secret
 - [x] Generate ADMIN_SESSION_SECRET
