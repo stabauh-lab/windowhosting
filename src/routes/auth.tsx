@@ -13,9 +13,11 @@ export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
       { title: "Sign in — TempDesk" },
-      { name: "description", content: "Sign in to launch a temporary Linux desktop." },
+      { name: "description", content: "Sign in to claim your free Windows RDP machine for 30 days." },
       { property: "og:title", content: "Sign in — TempDesk" },
-      { property: "og:description", content: "Sign in to launch a temporary Linux desktop." },
+      { property: "og:description", content: "Sign in to claim your free Windows RDP machine for 30 days." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: AuthPage,
@@ -60,7 +62,7 @@ function AuthPage() {
       <div className="mx-auto mt-16 w-full max-w-sm px-4">
         <div className="rounded-2xl border bg-card p-6 shadow-glow">
           <h1 className="text-2xl font-semibold">{mode === "in" ? "Welcome back" : "Create account"}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Get a free Linux desktop for 60 minutes.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Your free Windows machine. Yours for 30 days.</p>
           <Button variant="outline" className="mt-6 w-full" onClick={google}>Continue with Google</Button>
           <div className="my-4 text-center text-xs text-muted-foreground">or</div>
           <form onSubmit={submit} className="space-y-3">
@@ -72,10 +74,10 @@ function AuthPage() {
               {mode === "in" ? "Sign in" : "Sign up"}
             </Button>
           </form>
-          <button className="mt-4 w-full text-sm text-muted-foreground hover:text-foreground"
+          <Button variant="ghost" className="mt-4 w-full text-sm text-muted-foreground hover:text-foreground"
             onClick={() => setMode(mode === "in" ? "up" : "in")}>
             {mode === "in" ? "No account? Sign up" : "Have an account? Sign in"}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

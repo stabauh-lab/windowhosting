@@ -1,5 +1,8 @@
 # Roadmap
 
+- [x] Refresh the homepage with purple-and-white styling, DM fonts, free plan, features and FAQ
+- [x] Verify the refreshed homepage and navigation on desktop and mobile
+
 - [x] Store admin password (1122) as ADMIN_PASSWORD secret
 - [x] Generate ADMIN_SESSION_SECRET
 - [x] Migration: desktops table gains rdp_ip, rdp_port, rdp_username, rdp_password; 30-day sessions
