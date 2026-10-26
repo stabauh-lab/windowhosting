@@ -1,15 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { useSession } from "@tanstack/react-start/server";
 import { createHash, timingSafeEqual } from "node:crypto";
-
-const sessionConfig = {
-  password: process.env["ADMIN_SESSION_SECRET"]!,
-  name: "tempdesk-admin",
-  maxAge: 60 * 60 * 12, // 12 hours
-  cookie: { httpOnly: true, secure: true, sameSite: "lax" as const, path: "/" },
-};
-
-type AdminSession = { unlocked?: boolean };
 
 function passwordMatches(input: string, expected: string): boolean {
   const a = createHash("sha256").update(input, "utf8").digest();
@@ -25,18 +15,21 @@ export const unlockAdmin = createServerFn({ method: "POST" })
     if (!passwordMatches(data.password ?? "", expected)) {
       return { ok: false as const };
     }
-    const session = await useSession<AdminSession>(sessionConfig);
+    const { adminSession } = await import("@/lib/admin-session.server");
+    const session = await adminSession();
     await session.update({ unlocked: true });
     return { ok: true as const };
   });
 
 export const checkAdminUnlocked = createServerFn({ method: "GET" }).handler(async () => {
-  const session = await useSession<AdminSession>(sessionConfig);
+  const { adminSession } = await import("@/lib/admin-session.server");
+  const session = await adminSession();
   return { unlocked: !!session.data.unlocked };
 });
 
 export const lockAdmin = createServerFn({ method: "POST" }).handler(async () => {
-  const session = await useSession<AdminSession>(sessionConfig);
+  const { adminSession } = await import("@/lib/admin-session.server");
+  const session = await adminSession();
   await session.clear();
   return { ok: true as const };
 });
