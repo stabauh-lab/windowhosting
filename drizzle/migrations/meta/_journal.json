@@ -15,6 +15,13 @@
       "when": 1792842453934,
       "tag": "0001_windows_rdp_desktops",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793021357046,
+      "tag": "0002_rdp_request_approval",
+      "breakpoints": true
     }
   ]
 }

@@ -59,6 +59,41 @@ export type Database = {
         }
         Relationships: []
       }
+      rdp_requests: {
+        Row: {
+          approved_at: string | null
+          created_at: string
+          desktop_id: string | null
+          id: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          approved_at?: string | null
+          created_at?: string
+          desktop_id?: string | null
+          id?: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          approved_at?: string | null
+          created_at?: string
+          desktop_id?: string | null
+          id?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rdp_requests_desktop_id_fkey"
+            columns: ["desktop_id"]
+            isOneToOne: false
+            referencedRelation: "desktops"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           id: string
@@ -82,6 +117,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      approve_rdp_request: {
+        Args: { _desktop_id: string; _request_id: string }
+        Returns: string
+      }
       claim_desktop: { Args: { _os: string }; Returns: string }
       claim_rdp_desktop: { Args: never; Returns: string }
       count_available_desktops: {
