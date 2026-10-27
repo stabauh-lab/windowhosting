@@ -2,13 +2,14 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Plus, Trash2, RotateCcw, Lock, ShieldCheck, Monitor, LogOut, Cpu, MemoryStick, HardDrive } from "lucide-react";
+import { Plus, Trash2, RotateCcw, Lock, ShieldCheck, Monitor, LogOut, Cpu, MemoryStick, HardDrive, Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { supabase } from "@/integrations/supabase/client";
 import { unlockAdmin, checkAdminUnlocked, lockAdmin } from "@/lib/admin-gate.functions";
+import { addAdminMachine, approveRdp, changeAdminMachine, listAdminRdp } from "@/lib/rdp-admin.functions";
+import { canApproveMachine, isMachineAvailable } from "@/lib/rdp-rules";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -28,8 +29,9 @@ export const Route = createFileRoute("/admin")({
 type Desk = {
   id: string; name: string; rdp_ip: string | null; rdp_port: number;
   rdp_username: string | null; rdp_password: string | null;
-  enabled: boolean; assigned_to: string | null; expires_at: string | null;
+  enabled: boolean; assigned_to: string | null; expires_at: string | null; os: string;
 };
+type Request = { id: string; user_id: string; created_at: string; status: string };
 
 function AdminPage() {
   const [unlocked, setUnlocked] = useState<boolean | null>(null);
@@ -54,10 +56,11 @@ function PasswordGate({ onUnlock }: { onUnlock: () => void }) {
     e.preventDefault();
     setBusy(true);
     const password = new FormData(e.currentTarget).get("password") as string;
-    const { ok } = await unlock({ data: { password } });
-    setBusy(false);
-    if (ok) onUnlock();
-    else setError(true);
+    try {
+      const { ok } = await unlock({ data: { password } });
+      if (ok) onUnlock(); else setError(true);
+    } catch { toast.error("Could not unlock the panel. Try again."); }
+    finally { setBusy(false); }
   }
 
   return (
@@ -87,6 +90,14 @@ function PasswordGate({ onUnlock }: { onUnlock: () => void }) {
 function AdminPanel({ onLock }: { onLock: () => void }) {
   const lock = useServerFn(lockAdmin);
   const [rows, setRows] = useState<Desk[]>([]);
+  const [requests, setRequests] = useState<Request[]>([]);
+  const [selected, setSelected] = useState<Record<string, string>>({});
+  const [busyRequest, setBusyRequest] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const list = useServerFn(listAdminRdp);
+  const approve = useServerFn(approveRdp);
+  const addMachine = useServerFn(addAdminMachine);
+  const changeMachine = useServerFn(changeAdminMachine);
   const [name, setName] = useState("");
   const [ip, setIp] = useState("");
   const [port, setPort] = useState("3389");
@@ -94,39 +105,44 @@ function AdminPanel({ onLock }: { onLock: () => void }) {
   const [password, setPassword] = useState("");
 
   const load = useCallback(async () => {
-    const { data } = await supabase.from("desktops").select("*").order("created_at", { ascending: false });
-    setRows((data as Desk[]) ?? []);
-  }, []);
+    try {
+      const data = await list();
+      setRows(data.desktops);
+      setRequests(data.requests);
+      setLoadError(false);
+    } catch { setLoadError(true); }
+  }, [list]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { void load(); const timer = setInterval(() => { void load(); }, 10000); return () => clearInterval(timer); }, [load]);
 
   const add = async (e: React.FormEvent) => {
     e.preventDefault();
-    const { error } = await supabase.from("desktops").insert({
-      name: name || `Windows #${rows.length + 1}`,
-      os: "Windows",
-      vnc_url: "rdp",
-      rdp_ip: ip.trim(),
-      rdp_port: Number(port) || 3389,
-      rdp_username: username.trim(),
-      rdp_password: password,
-    });
-    if (error) { toast.error(error.message); return; }
-    setName(""); setIp(""); setPassword("");
-    toast.success("Desktop added");
-    load();
+    try {
+      await addMachine({ data: { name: name || `Windows #${rows.length + 1}`, ip, port: Number(port), username, password } });
+      setName(""); setIp(""); setPassword("");
+      toast.success("Desktop added");
+      await load();
+    } catch { toast.error("Could not add the machine. Check its connection details."); }
   };
 
-  const update = async (id: string, patch: Partial<Desk>) => {
-    const { error } = await supabase.from("desktops").update(patch).eq("id", id);
-    if (error) toast.error(error.message); else load();
+  const update = async (id: string, action: "enable" | "disable" | "release" | "delete") => {
+    try { await changeMachine({ data: { id, action } }); await load(); }
+    catch { toast.error("Could not update this machine."); }
   };
-  const remove = async (id: string) => {
-    await supabase.from("desktops").delete().eq("id", id); load();
+  const approveRequest = async (id: string) => {
+    const desktopId = selected[id];
+    if (!desktopId) return;
+    setBusyRequest(id);
+    try {
+      const result = await approve({ data: { requestId: id, desktopId } });
+      if (!result.ok) toast.error(result.error); else toast.success("Approved. The user's connection details are now available.");
+      await load();
+    } catch { toast.error("Approval failed. Refresh and try again."); }
+    finally { setBusyRequest(null); }
   };
-
-  const inUse = (d: Desk) => d.assigned_to && d.expires_at && new Date(d.expires_at) > new Date();
-  const free = rows.filter((d) => d.enabled && !inUse(d)).length;
+  const inUse = (d: Desk) => !!d.assigned_to && (!d.expires_at || new Date(d.expires_at) > new Date());
+  const free = rows.filter((d) => isMachineAvailable(d)).length;
+  const available = rows.filter((d) => canApproveMachine(d));
 
   return (
     <div className="min-h-screen">
@@ -150,7 +166,7 @@ function AdminPanel({ onLock }: { onLock: () => void }) {
           <h1 className="text-2xl font-semibold">Windows RDP machines</h1>
         </div>
         <p className="mt-1 text-sm text-muted-foreground">
-          Add real Windows machines. Each user who logs in gets one for 30 days.
+          Approve requests and assign real Windows machines. The 30 days start at approval.
         </p>
 
         <div className="mt-6 grid gap-3 sm:grid-cols-3">
@@ -166,6 +182,21 @@ function AdminPanel({ onLock }: { onLock: () => void }) {
           ))}
         </div>
 
+        <section className="mt-10 border-y py-7">
+          <div className="flex items-center justify-between gap-3"><h2 className="text-xl font-semibold">Pending RDP requests <span className="font-mono text-primary">({requests.length})</span></h2><Button variant="outline" size="icon" title="Refresh requests" onClick={load}><RotateCcw /></Button></div>
+          {loadError && <p role="alert" className="mt-4 text-sm text-destructive">Could not refresh the queue. Try again.</p>}
+          {!loadError && requests.length === 0 && <p className="mt-5 text-sm text-muted-foreground">No pending requests.</p>}
+          <div className="mt-5 space-y-3">{requests.map(request => <div key={request.id} className="flex flex-wrap items-center justify-between gap-4 rounded-lg border bg-card p-4">
+            <div className="min-w-0"><p className="text-sm font-semibold">Request <span className="font-mono">{request.id.slice(0, 8)}</span></p><p className="mt-1 break-all font-mono text-xs text-muted-foreground">User: {request.user_id}</p><p className="mt-1 text-xs text-muted-foreground">{new Date(request.created_at).toLocaleString()}</p></div>
+            <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+              <select aria-label={`Machine for request ${request.id.slice(0, 8)}`} className="h-10 min-w-0 flex-1 rounded-md border bg-background px-3 text-sm sm:max-w-64" value={selected[request.id] ?? ""} onChange={e => setSelected(prev => ({ ...prev, [request.id]: e.target.value }))}>
+                <option value="">{available.length ? "Select a machine" : "Add an available machine first"}</option>{available.map(d => <option key={d.id} value={d.id}>{d.name} · {d.rdp_ip}</option>)}
+              </select>
+              <Button disabled={busyRequest !== null || !available.some(d => d.id === selected[request.id])} onClick={() => approveRequest(request.id)}>{busyRequest === request.id ? <Loader2 className="animate-spin" /> : <Check />}Approve</Button>
+            </div>
+          </div>)}</div>
+        </section>
+
         <p className="mt-6 font-mono text-xs text-muted-foreground">
           {free} free · {rows.length - free} in use · {rows.length} total
         </p>
@@ -180,7 +211,7 @@ function AdminPanel({ onLock }: { onLock: () => void }) {
           <div className="space-y-1.5"><Label>Username</Label>
             <Input required value={username} onChange={(e) => setUsername(e.target.value)} /></div>
           <div className="space-y-1.5"><Label>Password</Label>
-            <Input required value={password} onChange={(e) => setPassword(e.target.value)} /></div>
+            <Input required type="password" value={password} onChange={(e) => setPassword(e.target.value)} /></div>
           <div className="flex items-end">
             <Button type="submit" className="w-full"><Plus className="h-4 w-4" />Add machine</Button>
           </div>
@@ -203,18 +234,18 @@ function AdminPanel({ onLock }: { onLock: () => void }) {
                   <td className="p-3 font-mono text-xs text-muted-foreground">{d.rdp_username}</td>
                   <td className="p-3">
                     {inUse(d)
-                      ? <span className="text-destructive">In use · until {new Date(d.expires_at!).toLocaleDateString()}</span>
+                      ? <span className="text-destructive">In use{d.expires_at ? ` · until ${new Date(d.expires_at).toLocaleDateString()}` : ""}</span>
                       : <span className="text-success">Free</span>}
                   </td>
-                  <td className="p-3"><Switch checked={d.enabled} onCheckedChange={(v) => update(d.id, { enabled: v })} /></td>
+                  <td className="p-3"><Switch checked={d.enabled} onCheckedChange={(v) => update(d.id, v ? "enable" : "disable")} /></td>
                   <td className="p-3 text-right whitespace-nowrap">
                     {inUse(d) && (
                       <Button size="icon" variant="ghost" title="Force release"
-                        onClick={() => update(d.id, { assigned_to: null, expires_at: null })}>
+                        onClick={() => update(d.id, "release")}>
                         <RotateCcw className="h-4 w-4" />
                       </Button>
                     )}
-                    <Button size="icon" variant="ghost" onClick={() => remove(d.id)}><Trash2 className="h-4 w-4" /></Button>
+                    <Button size="icon" variant="ghost" title="Delete machine" onClick={() => update(d.id, "delete")}><Trash2 className="h-4 w-4" /></Button>
                   </td>
                 </tr>
               ))}

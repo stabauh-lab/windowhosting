@@ -1,11 +1,12 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Copy, Power, Monitor, CalendarDays, KeyRound, User, Globe } from "lucide-react";
+import { Copy, Power, Monitor, CalendarDays, KeyRound, User, Globe, Loader2, Check, Clock3, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Header } from "@/components/Header";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { canShowCredentials } from "@/lib/rdp-rules";
 
 export const Route = createFileRoute("/desktop")({
   head: () => ({
@@ -22,7 +23,7 @@ export const Route = createFileRoute("/desktop")({
 });
 
 type Desk = {
-  id: string; name: string; rdp_ip: string | null; rdp_port: number;
+  id: string; name: string; rdp_ip: string | null; rdp_port: number; assigned_to: string | null;
   rdp_username: string | null; rdp_password: string | null; expires_at: string | null;
 };
 
@@ -56,27 +57,39 @@ function DesktopPage() {
   const navigate = useNavigate();
   const [desk, setDesk] = useState<Desk | null | undefined>(undefined);
   const [left, setLeft] = useState(0);
+  const [request, setRequest] = useState<{ id: string; status: string; created_at: string } | null>(null);
+  const [loadError, setLoadError] = useState(false);
 
   const load = useCallback(async () => {
     if (!user) return;
-    const { data } = await supabase
+    const [machineResult, requestResult] = await Promise.all([supabase
       .from("desktops")
-      .select("id,name,rdp_ip,rdp_port,rdp_username,rdp_password,expires_at")
+      .select("id,name,rdp_ip,rdp_port,rdp_username,rdp_password,expires_at,assigned_to")
       .eq("assigned_to", user.id)
       .gt("expires_at", new Date().toISOString())
-      .maybeSingle();
-    setDesk(data);
+      .maybeSingle(), supabase.from("rdp_requests").select("id,status,created_at,desktop_id").eq("user_id", user.id).order("created_at", { ascending: false })]);
+    if (machineResult.error || requestResult.error) { setLoadError(true); setDesk(null); return; }
+    setLoadError(false);
+    const pending = requestResult.data?.find(r => r.status === "pending") ?? null;
+    const data = machineResult.data;
+    const approval = requestResult.data?.find(r => r.desktop_id === data?.id && r.status === "approved");
+    setRequest(pending);
+    setDesk(data && canShowCredentials(approval?.status ?? null, data.assigned_to, user.id, data.expires_at) ? data : null);
   }, [user]);
 
   useEffect(() => {
     if (!loading && !user) navigate({ to: "/auth" });
-    load();
+    void load();
+    if (!user) return;
+    const timer = setInterval(() => { void load(); }, 5000);
+    return () => clearInterval(timer);
   }, [loading, user, load, navigate]);
 
   useEffect(() => {
     if (!desk?.expires_at) return;
+    const expiresAt = desk.expires_at;
     const tick = () => {
-      const ms = new Date(desk.expires_at!).getTime() - Date.now();
+      const ms = new Date(expiresAt).getTime() - Date.now();
       setLeft(Math.max(0, ms));
       if (ms <= 0) setDesk(null);
     };
@@ -86,12 +99,31 @@ function DesktopPage() {
   }, [desk]);
 
   const end = async () => {
-    await supabase.rpc("release_desktop");
+    const { error } = await supabase.rpc("release_desktop");
+    if (error) { toast.error("Could not release your machine. Try again."); return; }
     navigate({ to: "/" });
   };
 
   if (desk === undefined)
     return <div className="grid min-h-screen place-items-center text-muted-foreground">Loading…</div>;
+
+  if (loadError) return <div className="min-h-screen"><Header /><main className="mx-auto max-w-xl px-5 py-20 text-center"><h1 className="text-2xl font-semibold">Could not check your request</h1><Button className="mt-6" onClick={load}><RefreshCw />Try again</Button></main></div>;
+
+  if (!desk && request) return (
+    <div className="min-h-screen"><Header /><main className="mx-auto max-w-2xl px-5 py-16">
+      <span className="grid h-16 w-16 place-items-center rounded-lg bg-secondary text-primary"><Loader2 className="h-8 w-8 animate-spin motion-reduce:animate-none" /></span>
+      <p className="mt-6 font-mono text-xs text-primary">RDP REQUEST · {request.id.slice(0, 8)}</p>
+      <h1 className="mt-3 text-3xl font-bold">Awaiting admin approval</h1>
+      <p className="mt-4 leading-7 text-muted-foreground">Your Windows RDP request has been sent. Your IP address and login details will appear here once the admin approves and assigns your machine.</p>
+      <ol className="mt-8 space-y-5 border-y py-6">
+        <li className="flex items-center gap-3"><Check className="h-5 w-5 text-success" /><div><p className="font-semibold">Request received</p><p className="mt-1 text-xs text-muted-foreground">{new Date(request.created_at).toLocaleString()}</p></div></li>
+        <li className="flex items-center gap-3"><Clock3 className="h-5 w-5 text-primary" /><p className="font-semibold">Admin review in progress</p></li>
+        <li className="flex items-center gap-3 text-muted-foreground"><Monitor className="h-5 w-5" /><p>Connection details ready after approval</p></li>
+      </ol>
+      <p className="mt-5 text-sm text-muted-foreground">4 vCPU · 8 GiB RAM · 300 GB storage<br />Your 30 days start when your machine is approved.</p>
+      <Button variant="outline" className="mt-6" onClick={load}><RefreshCw />Check status</Button>
+    </main></div>
+  );
 
   if (!desk)
     return (
@@ -101,7 +133,7 @@ function DesktopPage() {
           <div>
             <h1 className="text-2xl font-semibold">No active machine</h1>
             <p className="mt-2 text-muted-foreground">Your 30 days ended or you haven't claimed one yet.</p>
-            <Button asChild className="mt-6"><Link to="/">Claim a machine</Link></Button>
+            <Button asChild className="mt-6"><Link to="/">Request a machine</Link></Button>
           </div>
         </div>
       </div>
@@ -138,7 +170,7 @@ function DesktopPage() {
               {days}d {String(hours).padStart(2, "0")}h {String(mins).padStart(2, "0")}m remaining
             </div>
             <div className="text-xs text-muted-foreground">
-              Active until {new Date(desk.expires_at!).toLocaleString()}
+              Active until {desk.expires_at ? new Date(desk.expires_at).toLocaleString() : "—"}
             </div>
           </div>
         </div>
@@ -155,7 +187,7 @@ function DesktopPage() {
 
         <p className="mt-6 rounded-xl border bg-card p-4 text-xs text-muted-foreground">
           Keep these details private — anyone with them can sign in to your machine.
-          The machine is yours until the timer ends, then it's wiped and given to someone else.
+          Save your files elsewhere before your access expires.
         </p>
       </main>
     </div>

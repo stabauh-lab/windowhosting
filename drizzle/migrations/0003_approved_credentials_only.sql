@@ -1,0 +1,2 @@
+DROP POLICY IF EXISTS "own session" ON public.desktops;
+CREATE POLICY "approved own session" ON public.desktops FOR SELECT TO authenticated USING (assigned_to=auth.uid() AND expires_at>now() AND EXISTS (SELECT 1 FROM public.rdp_requests r WHERE r.desktop_id=desktops.id AND r.user_id=auth.uid() AND r.status='approved'));
