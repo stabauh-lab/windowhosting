@@ -8,6 +8,7 @@ import { Header } from "@/components/Header";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import heroImage from "@/assets/windows-hero.jpg";
+import { PublicAdTag } from "@/components/PublicAdTag";
 
 export const Route = createFileRoute("/")({
   head: () => ({ meta: [
@@ -29,7 +30,7 @@ const specs = [
 ];
 const faqs = [
   { q: "Is my Windows machine really free?", a: "Yes. The TempDesk Windows plan is free for 30 days. Each signed-in user can claim one machine, subject to availability." },
-  { q: "How do I connect to my desktop?", a: "After you claim a machine, your machine page shows its real IP address, RDP port, username and password. Enter those details in Remote Desktop Connection on Windows, Windows App on Mac, or an RDP client on your phone." },
+  { q: "How do I connect to my desktop?", a: "Request a machine first. Once the admin approves and assigns it, your machine page shows its real IP address, RDP port, username and password. Enter those details in Remote Desktop Connection on Windows, Windows App on Mac, or an RDP client on your phone." },
   { q: "What is included with my machine?", a: "You get a Windows RDP machine with 4 vCPU, 8 GiB RAM and 300 GB storage. The machine stays assigned to you for 30 days, so you can return to your projects throughout that period." },
   { q: "Can I use it to test my applications?", a: "Yes. Use your Windows environment to run applications, test your projects and work remotely. Keep a separate backup of anything important before your access expires." },
   { q: "What happens when the 30 days end?", a: "Your access expires and the machine is no longer assigned to you. Save your files elsewhere before the end of your session. You can also release your machine early from your machine page." },
@@ -55,8 +56,8 @@ function Index() {
     if (error) { toast.error(error.message); return; }
     navigate({ to: "/desktop" });
   };
-  const claimDisabled = claiming || (stats?.available === 0 && !!user);
-  const claimLabel = user ? "Claim my machine" : "Get started free";
+  const claimDisabled = claiming;
+  const claimLabel = claiming ? "Sending request…" : user ? "Request my machine" : "Get started free";
 
   return (
     <div className="min-h-screen">
@@ -106,11 +107,12 @@ function Index() {
 
         <section className="bg-inverse text-inverse-foreground"><div className="mx-auto max-w-6xl px-5 py-16 lg:px-8 lg:py-20"><div className="flex flex-wrap items-end justify-between gap-5"><div><p className="font-mono text-xs text-inverse-foreground/60">FROM IDEA TO DESKTOP</p><h2 className="mt-3 text-3xl font-bold md:text-4xl">Three steps. You're in.</h2></div><Button size="lg" onClick={launch} disabled={claimDisabled}>{claimLabel}<ArrowRight /></Button></div><div className="mt-12 grid gap-8 md:grid-cols-3">{[
           { n: "01", title: "Make it yours", text: "Sign in or create your free TempDesk account." },
-          { n: "02", title: "Claim your machine", text: "Get an available Windows machine assigned to you for 30 days." },
+          { n: "02", title: "Request your machine", text: "Your request goes to the admin. Your 30 days begin when it's approved." },
           { n: "03", title: "Connect and create", text: "Use your IP and login details in your favorite RDP client." },
         ].map(s => <div key={s.n} className="border-t border-inverse-foreground/20 pt-6"><span className="font-mono text-sm text-inverse-foreground/50">{s.n}</span><h3 className="mt-4 text-xl font-bold">{s.title}</h3><p className="mt-3 max-w-xs text-sm leading-7 text-inverse-foreground/70">{s.text}</p></div>)}</div></div></section>
 
         <section id="faq" className="mx-auto max-w-3xl px-5 py-16 lg:py-20"><h2 className="text-center text-3xl font-bold md:text-4xl">A few things you might be wondering</h2><Accordion type="single" collapsible className="mt-10">{faqs.map((f, i) => <AccordionItem key={f.q} value={`faq-${i}`}><AccordionTrigger className="gap-5 py-6 text-base font-semibold hover:no-underline hover:text-primary">{f.q}</AccordionTrigger><AccordionContent className="pr-6 leading-7 text-muted-foreground">{f.a}</AccordionContent></AccordionItem>)}</Accordion></section>
+        {!loading && !user && <PublicAdTag />}
       </main>
       <footer className="border-t bg-muted"><div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-6 px-5 py-10 lg:px-8"><div><Link to="/" className="flex items-center gap-2 text-xl font-extrabold"><Monitor className="h-6 w-6 text-primary" />TempDesk</Link><p className="mt-2 text-sm text-muted-foreground">Your next idea deserves a workspace.</p></div><div className="flex gap-6 text-sm text-muted-foreground"><a href="#plan" className="hover:text-primary">Windows RDP</a><a href="#faq" className="hover:text-primary">FAQ</a><Link to="/auth" className="hover:text-primary">Log in</Link></div></div><div className="mx-auto max-w-6xl border-t px-5 py-5 text-xs text-muted-foreground lg:px-8">TempDesk · Free Windows cloud desktops. Availability may vary.</div></footer>
     </div>
