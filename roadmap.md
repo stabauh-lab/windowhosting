@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] Add requested advertising tag on the public homepage, isolated from private account/admin pages
+
 - [ ] Store pending RDP requests and require admin approval for allocation
 - [ ] Show awaiting-approval status and reveal credentials after approval
 - [ ] Add admin request queue with machine assignment
